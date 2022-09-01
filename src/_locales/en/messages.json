@@ -1,7 +1,7 @@
 {
   "extName": {
-    "message": "uBlock Origin",
-    "description": "extension name."
+    "message": "Adblocker",
+    "description": "I'm such a good adblocker."
   },
   "extShortDesc": {
     "message": "Finally, an efficient blocker. Easy on CPU and memory.",
