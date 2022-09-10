@@ -55,7 +55,7 @@ async function main() {
 
     const writeOps = [];
     const ruleResources = [];
-    const regexRuleResources = [];
+    const rulesetDetails = [];
     const outputDir = commandLineArgs.get('output') || '.';
 
     let goodTotalCount = 0;
@@ -137,6 +137,7 @@ async function main() {
     for ( const ruleset of rulesetConfigs ) {
         const lists = [];
 
+        log('============================');
         log(`Listset for '${ruleset.id}':`);
 
         if ( Array.isArray(ruleset.paths) ) {
@@ -152,11 +153,14 @@ async function main() {
             }
         }
 
-        const rules = await dnrRulesetFromRawLists(lists, {
+        const details = await dnrRulesetFromRawLists(lists, {
             env: [ 'chromium' ],
         });
-
-        log(`Ruleset size for '${ruleset.id}': ${rules.length}`);
+        const { ruleset: rules } = details;
+        log(`Input filter count: ${details.filterCount}`);
+        log(`\tAccepted filter count: ${details.acceptedFilterCount}`);
+        log(`\tRejected filter count: ${details.rejectedFilterCount}`);
+        log(`Output rule count: ${rules.length}`);
 
         const good = rules.filter(rule => isGood(rule) && isRegex(rule) === false);
         log(`\tGood: ${good.length}`);
@@ -198,10 +202,22 @@ async function main() {
             )
         );
 
-        regexRuleResources.push({
+        rulesetDetails.push({
             id: ruleset.id,
+            name: ruleset.name,
             enabled: ruleset.enabled,
-            rules: regexes
+            filters: {
+                total: details.filterCount,
+                accepted: details.acceptedFilterCount,
+                rejected: details.rejectedFilterCount,
+            },
+            rules: {
+                total: rules.length,
+                accepted: good.length,
+                discarded: redirects.length + headers.length + removeparams.length,
+                rejected: bad.length,
+                regexes,
+            },
         });
 
         ruleResources.push({
@@ -216,8 +232,8 @@ async function main() {
 
     writeOps.push(
         writeFile(
-            `${rulesetDir}/regexes.js`,
-            `export default ${JSON.stringify(regexRuleResources, replacer, 2)};\n`
+            `${rulesetDir}/ruleset-details.js`,
+            `export default ${JSON.stringify(rulesetDetails, replacer, 2)};\n`
         )
     );
 
@@ -227,11 +243,19 @@ async function main() {
     log(`Total regex rules count: ${maybeGoodTotalCount}`);
 
     // Patch manifest
-    const manifest = await fs.readFile(`${outputDir}/manifest.json`, { encoding: 'utf8' })
-        .then(text => JSON.parse(text));
+    const manifest = await fs.readFile(
+        `${outputDir}/manifest.json`,
+        { encoding: 'utf8' }
+    ).then(text =>
+        JSON.parse(text)
+    );
     manifest.declarative_net_request = { rule_resources: ruleResources };
     const now = new Date();
-    manifest.version = `0.1.${now.getUTCFullYear() - 2000}.${now.getUTCMonth() * 100 + now.getUTCDate()}`;
+    const yearPart = now.getUTCFullYear() - 2000;
+    const monthPart = (now.getUTCMonth() + 1) * 1000;
+    const dayPart = now.getUTCDate() * 10;
+    const hourPart = Math.floor(now.getUTCHours() / 3) + 1;
+    manifest.version = manifest.version + `.${yearPart}.${monthPart + dayPart + hourPart}`;
     await fs.writeFile(
         `${outputDir}/manifest.json`,
         JSON.stringify(manifest, null, 2) + '\n'
