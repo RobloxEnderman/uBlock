@@ -19,7 +19,7 @@
                 <span id="saveRules" class="fa-icon" data-i18n-title="popupTipSaveRules">lock</span>
                 <span id="revertRules" class="fa-icon" data-i18n-title="popupTipRevertRules">eraser</span>
             </div>
-            <div id="switch" role="button" aria-label tabindex="0" title>
+            <div id="switch" role="button" aria-label tabindex="0" data-i18n-title="popupPowerSwitchInfo">
                 <span class="fa-icon"><!--
                     Power button taken from Font Awesome v4.7.0 by Dave Gandy.
                     Unlike other FA icons, the power button is inlined here so
@@ -40,21 +40,36 @@
         </div>
         <div id="hostname"><span></span>&shy;<span></span></div>
     </div>
-    <hr data-section="a">
+    <div class="toolRibbon pageTools">
+        <span id="toggleGreatPowers">
+            <span class="fa-icon tool enabled" data-i18n-title="popupGrantGreatPowers">sun-o<span class="caption"></span></span>
+            <span class="fa-icon tool enabled" data-i18n-title="popupRevokeGreatPowers">sun<span class="caption"></span></span>
+            <span class="badge"></span>
+        </span>
+        <span></span>
+        <span></span>
+        <span></span>
+        <a href="dashboard.html" class="fa-icon tool enabled" target="uBODashboard" tabindex="0" data-i18n-title="popupTipDashboard">cogs<span class="caption" data-i18n="popupTipDashboard"></span></a>
+    </div>
     <div id="rulesetStats" data-section="a">
     </div>
-    <hr>
-    <div id="moreOrLess" class="">
+    <hr data-section="a">
+    <div id="moreOrLess">
         <span id="moreButton">
-            <span>More</span>&emsp;<span class="fa-icon">angle-up</span>
+            <span data-i18n="popupMoreButton">_</span>&emsp;<span class="fa-icon">angle-up</span>
         </span>
         <span id="lessButton">
-            <span class="fa-icon">angle-up</span>&emsp;<span>Less</span>
+            <span class="fa-icon">angle-up</span>&emsp;<span data-i18n="popupLessButton">_</span>
         </span>
     </div>
 </div>
 
+<div id="templates">
+    <div class="rulesetDetails"><h1></h1><p data-section="b"></p></div>
+</div>
+
 <script src="js/fa-icons.js"></script>
+<script src="js/i18n.js" type="module"></script>
 <script src="js/popup.js" type="module"></script>
 
 </body>

@@ -19,6 +19,8 @@
     Home: https://github.com/gorhill/uBlock
 */
 
+/* globals browser */
+
 'use strict';
 
 /******************************************************************************/
@@ -40,6 +42,7 @@ import µb from './background.js';
 import webRequest from './traffic.js';
 import { denseBase64 } from './base64-custom.js';
 import { dnrRulesetFromRawLists } from './static-dnr-filtering.js';
+import { i18n$ } from './i18n.js';
 import { redirectEngine } from './redirect-engine.js';
 import { StaticFilteringParser } from './static-filtering-parser.js';
 
@@ -160,7 +163,8 @@ const onMessage = function(request, sender, callback) {
             env: vAPI.webextFlavor.env,
         };
         const t0 = Date.now();
-        dnrRulesetFromRawLists(listPromises, options).then(details => {
+        dnrRulesetFromRawLists(listPromises, options).then(result => {
+            const { network } = result;
             const replacer = (k, v) => {
                 if ( k.startsWith('__') ) { return; }
                 if ( Array.isArray(v) ) {
@@ -192,13 +196,13 @@ const onMessage = function(request, sender, callback) {
                 rule.action.type === 'redirect' &&
                 rule.action.redirect.transform !== undefined;
             const runtime = Date.now() - t0;
-            const { ruleset } = details;
+            const { ruleset } = network;
             const out = [
                 `dnrRulesetFromRawLists(${JSON.stringify(listNames, null, 2)})`,
                 `Run time: ${runtime} ms`,
-                `Filters count: ${details.filterCount}`,
-                `Accepted filter count: ${details.acceptedFilterCount}`,
-                `Rejected filter count: ${details.rejectedFilterCount}`,
+                `Filters count: ${network.filterCount}`,
+                `Accepted filter count: ${network.acceptedFilterCount}`,
+                `Rejected filter count: ${network.rejectedFilterCount}`,
                 `Resulting DNR rule count: ${ruleset.length}`,
             ];
             const good = ruleset.filter(rule =>
@@ -236,6 +240,12 @@ const onMessage = function(request, sender, callback) {
                 isUnsupported(rule)
             );
             out.push(`+ Unsupported filters (${bad.length}): ${JSON.stringify(bad, replacer, 2)}`);
+
+            out.push(`\n+ Cosmetic filters: ${result.cosmetic.length}`);
+            for ( const details of result.cosmetic ) {
+                out.push(`    ${JSON.stringify(details)}`);
+            }
+
             callback(out.join('\n'));
         });
         return;
@@ -299,15 +309,24 @@ const onMessage = function(request, sender, callback) {
         µb.openNewTab(request.details);
         break;
 
-    case 'reloadTab':
-        if ( vAPI.isBehindTheSceneTabId(request.tabId) === false ) {
-            vAPI.tabs.reload(request.tabId, request.bypassCache === true);
-            if ( request.select && vAPI.tabs.select ) {
-                vAPI.tabs.select(request.tabId);
+    // https://github.com/uBlockOrigin/uBlock-issues/issues/1954
+    //   In case of document-blocked page, navigate to blocked URL instead
+    //   of forcing a reload.
+    case 'reloadTab': {
+        if ( vAPI.isBehindTheSceneTabId(request.tabId) ) { break; }
+        const { tabId, bypassCache, url, select } = request;
+        vAPI.tabs.get(tabId).then(tab => {
+            if ( url && tab && url !== tab.url ) {
+                vAPI.tabs.replace(tabId, url);
+            } else {
+                vAPI.tabs.reload(tabId, bypassCache === true);
             }
+        });
+        if ( select && vAPI.tabs.select ) {
+            vAPI.tabs.select(tabId);
         }
         break;
-
+    }
     case 'setWhitelist':
         µb.netWhitelist = µb.whitelistFromString(request.whitelist);
         µb.saveWhitelist();
@@ -890,7 +909,9 @@ const onMessage = function(request, sender, callback) {
                 mouse: µb.epickerArgs.mouse,
                 zap: µb.epickerArgs.zap,
                 eprom: µb.epickerArgs.eprom,
-                pickerURL: vAPI.getURL(`/web_accessible_resources/epicker-ui.html?secret=${vAPI.warSecret()}`),
+                pickerURL: vAPI.getURL(
+                    `/web_accessible_resources/epicker-ui.html?secret=${vAPI.warSecret()}`
+                ),
             });
             µb.epickerArgs.target = '';
         });
@@ -1064,7 +1085,7 @@ const backupUserData = async function() {
         userFilters: userFilters.content,
     };
 
-    const filename = vAPI.i18n('aboutBackupFilename')
+    const filename = i18n$('aboutBackupFilename')
         .replace('{{datetime}}', µb.dateNowToSensibleString())
         .replace(/ +/g, '_');
     µb.restoreBackupSettings.lastBackupFile = filename;
@@ -1305,7 +1326,7 @@ const getShortcuts = function(callback) {
             let desc = command.description;
             let match = /^__MSG_(.+?)__$/.exec(desc);
             if ( match !== null ) {
-                desc = vAPI.i18n(match[1]);
+                desc = i18n$(match[1]);
             }
             if ( desc === '' ) { continue; }
             command.description = desc;

@@ -1,4 +1,4 @@
-name: GitHub CI
+name: uBO release
 
 on:
   create:
@@ -19,7 +19,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Clone repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Clone uAssets
@@ -45,10 +45,6 @@ jobs:
           tools/make-firefox.sh ${{ steps.release_info.outputs.VERSION }}
           tools/make-thunderbird.sh ${{ steps.release_info.outputs.VERSION }}
           tools/make-npm.sh ${{ steps.release_info.outputs.VERSION }}
-      - name: Build MV3 packages
-        run: |
-          tools/make-mv3.sh full
-          echo "MV3PACKAGE=$(basename $(ls dist/build/uBlock0_*.mv3.zip))" >> $GITHUB_ENV
       - name: Upload Chromium package
         uses: actions/upload-release-asset@v1
         env:
@@ -84,13 +80,4 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: dist/build/uBlock0_${{ steps.release_info.outputs.VERSION }}.npm.tgz
           asset_name: uBlock0_${{ steps.release_info.outputs.VERSION }}.npm.tgz
-          asset_content_type: application/octet-stream
-      - name: Upload Chromium MV3 package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/build/${{ env.MV3PACKAGE }}
-          asset_name: ${{ env.MV3PACKAGE }}
           asset_content_type: application/octet-stream

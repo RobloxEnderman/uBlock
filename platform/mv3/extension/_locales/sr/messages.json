@@ -1,0 +1,218 @@
+{
+  "extName": {
+    "message": "uBlock Origin Lite",
+    "description": "extension name."
+  },
+  "extShortDesc": {
+    "message": "Експериментални блокатор садржаја без дозволе. Блокира огласе, трагаче, рударе криптовалута и још много тога одмах након инсталације",
+    "description": "this will be in the Chrome web store: must be 132 characters or less"
+  },
+  "perRulesetStats": {
+    "message": "{{ruleCount}} правила, конвертована из {{filterCount}} мрежних филтера",
+    "description": "Appears aside each filter list in the _3rd-party filters_ pane"
+  },
+  "dashboardName": {
+    "message": "uBO Lite — Контролна Плоча ",
+    "description": "English: uBO Lite — Dashboard"
+  },
+  "dashboardUnsavedWarning": {
+    "message": "Упозорење! Имате несачуване промене",
+    "description": "A warning in the dashboard when navigating away from unsaved changes"
+  },
+  "dashboardUnsavedWarningStay": {
+    "message": "Остани",
+    "description": "Label for button to prevent navigating away from unsaved changes"
+  },
+  "dashboardUnsavedWarningIgnore": {
+    "message": "Занемари",
+    "description": "Label for button to ignore unsaved changes"
+  },
+  "settingsPageName": {
+    "message": "Подешавања",
+    "description": "appears as tab name in dashboard"
+  },
+  "3pPageName": {
+    "message": "Спискови филтера",
+    "description": "appears as tab name in dashboard"
+  },
+  "1pPageName": {
+    "message": "Моји филтери",
+    "description": "appears as tab name in dashboard"
+  },
+  "whitelistPageName": {
+    "message": "Поуздани сајтови",
+    "description": "appears as tab name in dashboard"
+  },
+  "aboutPageName": {
+    "message": "О апликацији",
+    "description": "appears as tab name in dashboard"
+  },
+  "aboutPrivacyPolicy": {
+    "message": "Политика приватности",
+    "description": "Link to privacy policy on GitHub (English)"
+  },
+  "popupPowerSwitchInfo": {
+    "message": "Онемогућите/омогућите uBO Lite за ову локацију",
+    "description": "Tooltip for the main power button in the popup panel"
+  },
+  "popupTipDashboard": {
+    "message": "Отворите контролну плочу ",
+    "description": "English: Click to open the dashboard"
+  },
+  "popupTipZapper": {
+    "message": "Уђите у режим уклањања елемената",
+    "description": "Tooltip for the element-zapper icon in the popup panel"
+  },
+  "popupTipPicker": {
+    "message": "Уђите у режим избора елемената",
+    "description": "English: Enter element picker mode"
+  },
+  "popupTipReport": {
+    "message": "Пријавите проблем на овој веб страници",
+    "description": "Tooltip used for the 'chat' icon in the panel"
+  },
+  "popupTipSaveRules": {
+    "message": "Кликните да бисте своје промене учинили трајнима.",
+    "description": "Tooltip when hovering over the padlock in the dynamic filtering pane."
+  },
+  "popupTipRevertRules": {
+    "message": "Кликните да бисте вратили промене.",
+    "description": "Tooltip when hovering over the eraser in the dynamic filtering pane."
+  },
+  "popupMoreButton": {
+    "message": "Више",
+    "description": "Label to be used to show popup panel sections"
+  },
+  "popupGrantGreatPowers": {
+    "message": "Кликните да бисте доделили uBO Lite проширене дозволе на овој веб локацији.\nПроширене дозволе омогућавају ефикасније блокирање садржаја.",
+    "description": "Label to be used to show popup panel sections"
+  },
+  "popupRevokeGreatPowers": {
+    "message": "Кликните да бисте опозвали проширене дозволе на овом сајту",
+    "description": "Label to be used to show popup panel sections"
+  },
+  "popupLessButton": {
+    "message": "Мање",
+    "description": "Label to be used to hide popup panel sections"
+  },
+  "settingsIconBadgePrompt": {
+    "message": "Прикажите број појединачних захтева на иконици",
+    "description": "English: Show the number of blocked requests on the icon"
+  },
+  "settingsAppearance": {
+    "message": "Изглед",
+    "description": "Section for controlling user interface appearance"
+  },
+  "settingsThemeLabel": {
+    "message": "Тема",
+    "description": "Label for checkbox to enable a custom dark theme"
+  },
+  "settingsThemeAccent0Label": {
+    "message": "Прилагођена наглашена боја",
+    "description": "Label for checkbox to pick an accent color"
+  },
+  "settingsNoCSPReportsPrompt": {
+    "message": "Блокирајте ЦСП извештаје",
+    "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
+  },
+  "3pGroupDefault": {
+    "message": "Подразумевано",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "3pGroupAds": {
+    "message": "Рекламе",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "3pGroupPrivacy": {
+    "message": "Приватност",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "3pGroupMalware": {
+    "message": "Злонамерни домени",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "3pGroupAnnoyances": {
+    "message": "Досаде",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "3pGroupMisc": {
+    "message": "Разнолично",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "3pGroupRegions": {
+    "message": "Региони, језици",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "1pFormatHint": {
+    "message": "Један филтер по реду. Филтер може бити обично име хоста или филтер компатибилан са EasyList-ом. Редови са префиксом <code>!</code> ће бити занемарени.",
+    "description": "Short information about how to create custom filters"
+  },
+  "1pImport": {
+    "message": "Увези и додај",
+    "description": "English: Import and append"
+  },
+  "1pExport": {
+    "message": "Извези",
+    "description": "English: Export"
+  },
+  "1pExportFilename": {
+    "message": "моји-ublock-статични-филтери_{{datetime}}.txt",
+    "description": "English: my-ublock-static-filters_{{datetime}}.txt"
+  },
+  "whitelistPrompt": {
+    "message": "Смернице поузданих сајтова диктирају на којим веб страницама уБО Лите треба да буде онемогућен. Један унос по реду.",
+    "description": "A concise description of the 'Trusted sites' pane."
+  },
+  "whitelistImport": {
+    "message": "Увези и додај",
+    "description": "English: Import and append"
+  },
+  "whitelistExport": {
+    "message": "Извези",
+    "description": "English: Export"
+  },
+  "whitelistExportFilename": {
+    "message": "моје-ublock-поуздане-странице_{{datetime}}.txt",
+    "description": "The default filename to use for import/export purpose"
+  },
+  "aboutChangelog": {
+    "message": "Евиденција измена",
+    "description": ""
+  },
+  "aboutCode": {
+    "message": "Изворни код (GPLv3)",
+    "description": "English: Source code (GPLv3)"
+  },
+  "aboutContributors": {
+    "message": "Сарадници",
+    "description": "English: Contributors"
+  },
+  "aboutSourceCode": {
+    "message": "Изворни код",
+    "description": "Link text to source code repo"
+  },
+  "aboutTranslations": {
+    "message": "Преводи",
+    "description": "Link text to translations repo"
+  },
+  "aboutFilterLists": {
+    "message": "Спискови филтера",
+    "description": "Link text to uBO's own filter lists repo"
+  },
+  "aboutDependencies": {
+    "message": "Спољне зависности (компатибилно са GPLv3):",
+    "description": "Shown in the About pane"
+  },
+  "genericSubmit": {
+    "message": "Потврди",
+    "description": "for generic 'Submit' buttons"
+  },
+  "genericApplyChanges": {
+    "message": "Примените измене",
+    "description": "for generic 'Apply changes' buttons"
+  },
+  "genericRevert": {
+    "message": "Врати на стара подешавања",
+    "description": "for generic 'Revert' buttons"
+  }
+}

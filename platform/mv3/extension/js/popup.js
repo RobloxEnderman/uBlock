@@ -1,7 +1,7 @@
 /*******************************************************************************
 
     uBlock Origin - a browser extension to block requests.
-    Copyright (C) 2014-present Raymond Hill
+    Copyright (C) 2022-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,31 +19,41 @@
     Home: https://github.com/gorhill/uBlock
 */
 
+/* jshint esversion:11 */
+
 'use strict';
 
 /******************************************************************************/
 
-let currentTab = {};
-let originalTrustedState = false;
+import { browser, sendMessage } from './ext.js';
+import { dom, qs$ } from './dom.js';
+import { i18n$ } from './i18n.js';
+import { simpleStorage } from './storage.js';
 
 /******************************************************************************/
 
-class safeLocalStorage {
-    static getItem(k) {
-        try {
-            return self.localStorage.getItem(k);
-        }
-        catch(ex) {
-        }
-        return null;
-    }
-    static setItem(k, v) {
-        try {
-            self.localStorage.setItem(k, v);
-        }
-        catch(ex) {
-        }
-    }
+let currentTab = {};
+let tabHostname = '';
+
+
+/******************************************************************************/
+
+let originalStateHash = '';
+
+function getCurrentStateHash() {
+    const parts = [
+        dom.cl.has(dom.body, 'off'),
+        dom.cl.has(dom.body, 'hasGreatPowers'),
+    ];
+    return parts.join('\t');
+}
+
+function onStateHashChanged() {
+    dom.cl.toggle(
+        dom.body, 
+        'needReload',
+        getCurrentStateHash() !== originalStateHash
+    );
 }
 
 /******************************************************************************/
@@ -56,8 +66,10 @@ async function toggleTrustedSiteDirective() {
         return;
     }
     if ( url instanceof URL === false ) { return; }
-    const targetTrustedState = document.body.classList.contains('off');
-    const newTrustedState = await chrome.runtime.sendMessage({
+
+    const targetTrustedState = dom.cl.has(dom.body, 'off');
+
+    const newTrustedState = await sendMessage({
         what: 'toggleTrustedSiteDirective',
         origin: url.origin,
         state: targetTrustedState,
@@ -65,99 +77,37 @@ async function toggleTrustedSiteDirective() {
     }).catch(( ) =>
         targetTrustedState === false
     );
-    document.body.classList.toggle('off', newTrustedState === true);
-    document.body.classList.toggle(
-        'needReload',
-        newTrustedState !== originalTrustedState
-    );
+
+    dom.cl.toggle(dom.body, 'off', newTrustedState === true);
+    onStateHashChanged();
 }
+
+dom.on(qs$('#switch'), 'click', toggleTrustedSiteDirective);
 
 /******************************************************************************/
 
 function reloadTab(ev) {
-    chrome.tabs.reload(currentTab.id, {
+    browser.tabs.reload(currentTab.id, {
         bypassCache: ev.ctrlKey || ev.metaKey || ev.shiftKey,
     });
-    document.body.classList.remove('needReload');
-    originalTrustedState = document.body.classList.contains('off');
+    dom.cl.remove(dom.body, 'needReload');
+    originalStateHash = getCurrentStateHash();
 }
 
-/******************************************************************************/
-
-async function init() {
-    const [ tab ] = await chrome.tabs.query({ active: true });
-    if ( tab instanceof Object === false ) { return true; }
-    currentTab = tab;
-
-    let url;
-    try {
-        url = new URL(currentTab.url);
-    } catch(ex) {
-    }
-
-    let popupPanelData;
-    if ( url !== undefined ) {
-        popupPanelData = await chrome.runtime.sendMessage({
-            what: 'popupPanelData',
-            origin: url.origin,
-        });
-        originalTrustedState = popupPanelData.isTrusted === true;
-    }
-
-    const body = document.body;
-    body.classList.toggle('off', originalTrustedState);
-    const elemHn = document.querySelector('#hostname');
-    elemHn.textContent = url && url.hostname || '';
-
-    document.querySelector('#switch').addEventListener(
-        'click',
-        toggleTrustedSiteDirective
-    );
-
-    document.querySelector('#refresh').addEventListener(
-        'click',
-        reloadTab
-    );
-
-    if ( popupPanelData ) {
-        const parent = document.querySelector('#rulesetStats');
-        for ( const details of popupPanelData.rulesetDetails ) {
-            const h1 = document.createElement('h1');
-            h1.textContent = details.name;
-            parent.append(h1);
-            const p = document.createElement('p');
-            p.textContent = `${details.ruleCount.toLocaleString()} rules, converted from ${details.filterCount.toLocaleString()} network filters`;
-            parent.append(p);
-        }
-    }
-
-    document.body.classList.remove('loading');
-
-    return true;
-}
-
-async function tryInit() {
-    try {
-        await init();
-    } catch(ex) {
-        setTimeout(tryInit, 100);
-    }
-}
-
-tryInit();
+dom.on(qs$('#refresh'), 'click', reloadTab);
 
 /******************************************************************************/
 
 // The popup panel is made of sections. Visibility of sections can be
 // toggled on/off.
 
-const maxNumberOfSections = 1;
+const maxNumberOfSections = 2;
 
 const sectionBitsFromAttribute = function() {
-    const attr = document.body.dataset.section;
-    if ( attr === '' ) { return 0; }
+    const value = dom.body.dataset.section;
+    if ( value === '' ) { return 0; }
     let bits = 0;
-    for ( const c of attr.split(' ') ) {
+    for ( const c of value.split(' ') ) {
         bits |= 1 << (c.charCodeAt(0) - 97);
     }
     return bits;
@@ -166,13 +116,13 @@ const sectionBitsFromAttribute = function() {
 const sectionBitsToAttribute = function(bits) {
     if ( typeof bits !== 'number' ) { return; }
     if ( isNaN(bits) ) { return; }
-    const attr = [];
+    const value = [];
     for ( let i = 0; i < maxNumberOfSections; i++ ) {
         const bit = 1 << i;
         if ( (bits & bit) === 0 ) { continue; }
-        attr.push(String.fromCharCode(97 + i));
+        value.push(String.fromCharCode(97 + i));
     }
-    document.body.dataset.section = attr.join(' ');
+    dom.body.dataset.section = value.join(' ');
 };
 
 async function toggleSections(more) {
@@ -189,20 +139,122 @@ async function toggleSections(more) {
     }
     if ( newBits === currentBits ) { return; }
     sectionBitsToAttribute(newBits);
-    safeLocalStorage.setItem('popupPanelSections', newBits);
+    simpleStorage.setItem('popupPanelSections', newBits);
 }
 
-sectionBitsToAttribute(
-    parseInt(safeLocalStorage.getItem('popupPanelSections'), 10)
-);
+simpleStorage.getItem('popupPanelSections').then(s => {
+    sectionBitsToAttribute(parseInt(s, 10) || 0);
+});
 
-document.querySelector('#moreButton').addEventListener('click', ( ) => {
+dom.on(qs$('#moreButton'), 'click', ( ) => {
     toggleSections(true);
 });
 
-document.querySelector('#lessButton').addEventListener('click', ( ) => {
+dom.on(qs$('#lessButton'), 'click', ( ) => {
     toggleSections(false);
 });
+
+/******************************************************************************/
+
+async function grantGreatPowers() {
+    const granted = await sendMessage({
+        what: 'grantGreatPowers',
+        hostname: tabHostname,
+    });
+    if ( granted !== true ) { return; }
+    dom.cl.add(dom.body, 'hasGreatPowers');
+    onStateHashChanged();
+}
+
+async function revokeGreatPowers() {
+    const removed = await sendMessage({
+        what: 'revokeGreatPowers',
+        hostname: tabHostname,
+    });
+    if ( removed !== true ) { return; }
+    dom.cl.remove(dom.body, 'hasGreatPowers');
+    onStateHashChanged();
+}
+
+dom.on(qs$('#toggleGreatPowers'), 'click', ( ) => {
+    if ( dom.cl.has(dom.body, 'hasGreatPowers' ) ) {
+        revokeGreatPowers();
+    } else {
+        grantGreatPowers();
+    }
+});
+
+/******************************************************************************/
+
+async function init() {
+    const [ tab ] = await browser.tabs.query({ active: true });
+    if ( tab instanceof Object === false ) { return true; }
+    currentTab = tab;
+
+    let url;
+    try {
+        url = new URL(currentTab.url);
+        tabHostname = url.hostname || '';
+    } catch(ex) {
+    }
+
+    let popupPanelData = {};
+    if ( url !== undefined ) {
+        popupPanelData = await sendMessage({
+            what: 'popupPanelData',
+            origin: url.origin,
+        });
+    }
+
+    dom.cl.toggle(
+        dom.body,
+        'off',
+        popupPanelData.isTrusted === true
+    );
+
+    dom.cl.toggle(
+        dom.body,
+        'hasGreatPowers',
+        popupPanelData.hasGreatPowers === true
+    );
+
+    dom.text(qs$('#hostname'), tabHostname);
+    dom.text(
+        qs$('#toggleGreatPowers .badge'),
+        popupPanelData.injectableCount || ''
+    );
+
+    const parent = qs$('#rulesetStats');
+    for ( const details of popupPanelData.rulesetDetails || [] ) {
+        const div = qs$('#templates .rulesetDetails').cloneNode(true);
+        dom.text(qs$('h1', div), details.name);
+        const { rules, filters, css } = details;
+        dom.text(
+            qs$('p', div),
+            i18n$('perRulesetStats')
+                .replace('{{ruleCount}}', rules.accepted.toLocaleString())
+                .replace('{{filterCount}}', filters.accepted.toLocaleString())
+                .replace('{{cssSpecificCount}}', css.specific.toLocaleString())
+        );
+        parent.append(div);
+    }
+
+    dom.cl.remove(dom.body, 'loading');
+
+    originalStateHash = getCurrentStateHash();
+
+    return true;
+}
+
+async function tryInit() {
+    try {
+        await init();
+    } catch(ex) {
+        setTimeout(tryInit, 100);
+    }
+}
+
+tryInit();
 
 /******************************************************************************/
 
