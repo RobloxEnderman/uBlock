@@ -28,9 +28,9 @@ import https from 'https';
 import path from 'path';
 import process from 'process';
 import { createHash } from 'crypto';
-
 import { dnrRulesetFromRawLists } from './js/static-dnr-filtering.js';
 import { StaticFilteringParser } from './js/static-filtering-parser.js';
+import { fnameFromFileId } from './js/utils.js';
 
 /******************************************************************************/
 
@@ -67,8 +67,10 @@ const jsonSetMapReplacer = (k, v) => {
     return v;
 };
 
-const uid = (s, l = 8) =>
-    createHash('sha256').update(s).digest('hex').slice(0,l);
+const uidint32 = (s) => {
+    const h = createHash('sha256').update(s).digest('hex').slice(0,8);
+    return parseInt(h,16) & 0x7FFFFFFF;
+};
 
 /******************************************************************************/
 
@@ -342,25 +344,32 @@ function loadAllSourceScriptlets() {
 
 const globalPatchedScriptletsSet = new Set();
 
-function addScriptingAPIResources(id, entry, prop, fname) {
+function addScriptingAPIResources(id, entry, prop, fid) {
     if ( entry[prop] === undefined ) { return; }
     for ( const hn of entry[prop] ) {
         let details = scriptingDetails.get(id);
         if ( details === undefined ) {
-            details = {
-                matches: new Map(),
-                excludeMatches: new Map(),
-            };
+            details = {};
             scriptingDetails.set(id, details);
         }
-        let fnames = details[prop].get(hn);
-        if ( fnames === undefined ) {
-            fnames = new Set();
-            details[prop].set(hn, fnames);
+        if ( details[prop] === undefined ) {
+            details[prop] = new Map();
         }
-        fnames.add(fname);
+        let fids = details[prop].get(hn);
+        if ( fids === undefined ) {
+            details[prop].set(hn, fid);
+        } else if ( fids instanceof Set ) {
+            fids.add(fid);
+        } else if ( fid !== fids ) {
+            fids = new Set([ fids, fid ]);
+            details[prop].set(hn, fids);
+        }
     }
 }
+
+const toCSSFileId = s => uidint32(s) & ~0b1;
+const toJSFileId  = s => uidint32(s) |  0b1;
+const pathFromFileName = fname => `${scriptletDir}/${fname.slice(0,2)}/${fname.slice(2)}.js`;
 
 /******************************************************************************/
 
@@ -395,7 +404,7 @@ async function processCosmeticFilters(assetDetails, mapin) {
     const cssContentMap = new Map();
     for ( const entry of optimized ) {
         // ends-with 0 = css resource
-        const id = parseInt(uid(entry.selector), 16);
+        const id = uidint32(entry.selector);
         let details = cssContentMap.get(id);
         if ( details === undefined ) {
             details = { a: entry.selector };
@@ -477,10 +486,11 @@ async function processCosmeticFilters(assetDetails, mapin) {
                 `${JSON.stringify(hostnamesMap, jsonReplacer)}`
             );
         // ends-with 0 = css resource
-        const fname = uid(patchedScriptlet) + '0';
-        if ( globalPatchedScriptletsSet.has(fname) === false ) {
-            globalPatchedScriptletsSet.add(fname);
-            writeFile(`${scriptletDir}/${fname.slice(0,1)}/${fname.slice(1)}.js`, patchedScriptlet, {});
+        const fid = toCSSFileId(patchedScriptlet);
+        if ( globalPatchedScriptletsSet.has(fid) === false ) {
+            globalPatchedScriptletsSet.add(fid);
+            const fname = fnameFromFileId(fid);
+            writeFile(pathFromFileName(fname), patchedScriptlet, {});
             generatedFiles.push(fname);
         }
         for ( const entry of slice ) {
@@ -488,13 +498,13 @@ async function processCosmeticFilters(assetDetails, mapin) {
                 assetDetails.id,
                 { matches: entry[1].y },
                 'matches',
-                fname
+                fid
             );
             addScriptingAPIResources(
                 assetDetails.id,
                 { excludeMatches: entry[1].n },
                 'excludeMatches',
-                fname
+                fid
             );
         }
     }
@@ -622,12 +632,12 @@ async function processScriptletFilters(assetDetails, mapin) {
 
     for ( const [ token, argsDetails ] of scriptletDetails ) {
         const argsMap = Array.from(argsDetails).map(entry => [
-            parseInt(uid(entry[0]),16),
+            uidint32(entry[0]),
             { a: entry[1].a, n: entry[1].n }
         ]);
         const hostnamesMap = new Map();
         for ( const [ argsHash, details ] of argsDetails ) {
-            toHostnamesMap(details.y, parseInt(uid(argsHash),16), hostnamesMap);
+            toHostnamesMap(details.y, uidint32(argsHash), hostnamesMap);
         }
         const patchedScriptlet = originalScriptletMap.get(token)
             .replace(
@@ -638,10 +648,11 @@ async function processScriptletFilters(assetDetails, mapin) {
                 `${JSON.stringify(hostnamesMap, jsonReplacer)}`
             );
         // ends-with 1 = scriptlet resource
-        const fname = uid(patchedScriptlet) + '1';
-        if ( globalPatchedScriptletsSet.has(fname) === false ) {
-            globalPatchedScriptletsSet.add(fname);
-            writeFile(`${scriptletDir}/${fname.slice(0,1)}/${fname.slice(1)}.js`, patchedScriptlet, {});
+        const fid = toJSFileId(patchedScriptlet);
+        if ( globalPatchedScriptletsSet.has(fid) === false ) {
+            globalPatchedScriptletsSet.add(fid);
+            const fname = fnameFromFileId(fid);
+            writeFile(pathFromFileName(fname), patchedScriptlet, {});
             generatedFiles.push(fname);
         }
         for ( const details of argsDetails.values() ) {
@@ -649,13 +660,13 @@ async function processScriptletFilters(assetDetails, mapin) {
                 assetDetails.id,
                 { matches: details.y },
                 'matches',
-                fname
+                fid
             );
             addScriptingAPIResources(
                 assetDetails.id,
                 { excludeMatches: details.n },
                 'excludeMatches',
-                fname
+                fid
             );
         }
     }
