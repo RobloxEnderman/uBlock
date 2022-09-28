@@ -115,6 +115,14 @@
     "message": "CSP-მოხსენებების აკრძალვა",
     "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
   },
+  "omnipotenceLabel": {
+    "message": "გაფართოებული ფილტრაციის ჩართვა ყველა საიტზე",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "omnipotenceLegend": {
+    "message": "uBO Lite შეძლებს გაფართოებული ფილტრაციის გამოყენებას მითითებულ საიტზე მას შემდეგ, რაც დართავთ მას ამ საიტზე მონაცემების შეცვლის ნებას. ამ პარამეტრით კი შეძლებთ ერთბაშად  დართოთ გაფართოებული ფილტრაციის გამოყენების ნება ყველა საიტზე.",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
   "3pGroupDefault": {
     "message": "ნაგულისხმევი",
     "description": "Header for a ruleset section in 'Filter lists pane'"

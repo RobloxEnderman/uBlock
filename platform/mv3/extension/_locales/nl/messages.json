@@ -115,6 +115,14 @@
     "message": "CSP-rapporten blokkeren",
     "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
   },
+  "omnipotenceLabel": {
+    "message": "Uitgebreide filtering op alle websites inschakelen",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "omnipotenceLegend": {
+    "message": "uBO Lite kan alleen uitgebreide filtering op een bepaalde website toepassen nadat u de extensie expliciet toestemmingen hebt verleend om gegevens op die website aan te passen. Via deze instelling kunt u toestemmingen voor uitgebreide filtering aan alle websites tegelijk verlenen.",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
   "3pGroupDefault": {
     "message": "Standaard",
     "description": "Header for a ruleset section in 'Filter lists pane'"

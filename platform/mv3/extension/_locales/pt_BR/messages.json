@@ -115,6 +115,14 @@
     "message": "Bloquear relatórios CSP",
     "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
   },
+  "omnipotenceLabel": {
+    "message": "Habilitar filtragem estendida em todos os websites",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "omnipotenceLegend": {
+    "message": "O uBO Lite pode aplicar filtragem estendida em um determinado site somente após você conceder explicitamente as permissões de extensão para modificar dados nesse site. Essa configuração permite que você conceda permissões para filtragem estendida a todos os sites de uma só vez.",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
   "3pGroupDefault": {
     "message": "Padrão",
     "description": "Header for a ruleset section in 'Filter lists pane'"

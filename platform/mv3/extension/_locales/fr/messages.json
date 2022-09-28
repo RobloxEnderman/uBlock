@@ -4,7 +4,7 @@
     "description": "extension name."
   },
   "extShortDesc": {
-    "message": "Un bloqueur allégé, expérimental et sans permission requise. Bloque les publicités, pisteurs, mineurs dès l'installation.",
+    "message": "Un bloqueur allégé, expérimental et sans permission requise. Bloque les publicités, pisteurs, mineurs et plus dès l'installation.",
     "description": "this will be in the Chrome web store: must be 132 characters or less"
   },
   "perRulesetStats": {
@@ -114,6 +114,14 @@
   "settingsNoCSPReportsPrompt": {
     "message": "Bloquer les rapports CSP",
     "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
+  },
+  "omnipotenceLabel": {
+    "message": "Activer le filtrage étendu sur tous les sites Web",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "omnipotenceLegend": {
+    "message": "uBO Lite peut appliquer le filtrage étendu sur un site Web lorsque vous donnez à l'extension les permissions de modification des données sur ce site Web. Ce réglage vous permet d'accorder les permissions pour activer le filtrage étendu directement sur tous les sites Web.",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
   },
   "3pGroupDefault": {
     "message": "Par défaut",

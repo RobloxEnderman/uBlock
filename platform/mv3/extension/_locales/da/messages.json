@@ -115,6 +115,14 @@
     "message": "Blokér CSP-anmldelser",
     "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
   },
+  "omnipotenceLabel": {
+    "message": "Aktivér udvidet filtrering på alle websteder",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "omnipotenceLegend": {
+    "message": "uBO Lite kan kun anvende udvidet filtrering på et givent websted efter udtrykkelig tildeling af udvidelsestilladelser til ændring af data på webstedet. Via denne indstilling kan tilladelser til udvidet filtrering tildeles for alle websteder på én gang.",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
   "3pGroupDefault": {
     "message": "Standard",
     "description": "Header for a ruleset section in 'Filter lists pane'"

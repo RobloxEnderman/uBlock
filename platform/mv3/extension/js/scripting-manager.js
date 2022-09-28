@@ -27,14 +27,9 @@
 
 import { browser, dnr } from './ext.js';
 import { fetchJSON } from './fetch.js';
-import { matchesTrustedSiteDirective } from './trusted-sites.js';
+import { getAllTrustedSiteDirectives } from './trusted-sites.js';
 
-import {
-    parsedURLromOrigin,
-    toBroaderHostname,
-    fidFromFileName,
-    fnameFromFileId,
-} from './utils.js';
+import * as ut from './utils.js';
 
 /******************************************************************************/
 
@@ -57,28 +52,6 @@ function getScriptingDetails() {
 
 /******************************************************************************/
 
-const matchesFromHostnames = hostnames => {
-    const out = [];
-    for ( const hn of hostnames ) {
-        if ( hn === '*' ) {
-            out.push('*://*/*');
-        } else {
-            out.push(`*://*.${hn}/*`);
-        }
-    }
-    return out;
-};
-
-const hostnamesFromMatches = origins => {
-    const out = [];
-    for ( const origin of origins ) {
-        const match = /^\*:\/\/([^\/]+)\/\*/.exec(origin);
-        if ( match === null ) { continue; }
-        out.push(match[1]);
-    }
-    return out;
-};
-
 const arrayEq = (a, b) => {
     if ( a === undefined ) { return b === undefined; }
     if ( b === undefined ) { return false; }
@@ -94,38 +67,51 @@ const arrayEq = (a, b) => {
 const toRegisterable = (fname, entry) => {
     const directive = {
         id: fname,
-        allFrames: true,
     };
     if ( entry.matches ) {
-        directive.matches = matchesFromHostnames(entry.matches);
+        directive.matches = ut.matchesFromHostnames(entry.matches);
     } else {
-        directive.matches = [ '*://*/*' ];
+        directive.matches = [ '<all_urls>' ];
     }
     if ( entry.excludeMatches ) {
-        directive.excludeMatches = matchesFromHostnames(entry.excludeMatches);
+        directive.excludeMatches = ut.matchesFromHostnames(entry.excludeMatches);
     }
     directive.js = [ `/rulesets/js/${fname.slice(0,2)}/${fname.slice(2)}.js` ];
-    directive.runAt = 'document_start';
-    if ( (fidFromFileName(fname) & MAIN_WORLD_BIT) !== 0 ) {
+    if ( (ut.fidFromFileName(fname) & RUN_AT_BIT) !== 0 ) {
+        directive.runAt = 'document_end';
+    } else {
+        directive.runAt = 'document_start';
+    }
+    if ( (ut.fidFromFileName(fname) & MAIN_WORLD_BIT) !== 0 ) {
         directive.world = 'MAIN';
     }
     return directive;
 };
 
-const MAIN_WORLD_BIT = 0b1;
+const RUN_AT_BIT =     0b10;
+const MAIN_WORLD_BIT = 0b01;
 
 /******************************************************************************/
 
 const shouldUpdate = (registered, candidate) => {
     const matches = candidate.matches &&
-        matchesFromHostnames(candidate.matches);
+        ut.matchesFromHostnames(candidate.matches);
     if ( arrayEq(registered.matches, matches) === false ) {
         return true;
     }
     const excludeMatches = candidate.excludeMatches &&
-        matchesFromHostnames(candidate.excludeMatches);
+        ut.matchesFromHostnames(candidate.excludeMatches);
     if ( arrayEq(registered.excludeMatches, excludeMatches) === false ) {
         return true;
+    }
+    return false;
+};
+
+const isTrustedHostname = (trustedSites, hn) => {
+    if ( trustedSites.size === 0 ) { return false; }
+    while ( hn ) {
+        if ( trustedSites.has(hn) ) { return true; }
+        hn = ut.toBroaderHostname(hn);
     }
     return false;
 };
@@ -133,7 +119,7 @@ const shouldUpdate = (registered, candidate) => {
 /******************************************************************************/
 
 async function getInjectableCount(origin) {
-    const url = parsedURLromOrigin(origin);
+    const url = ut.parsedURLromOrigin(origin);
     if ( url === undefined ) { return 0; }
 
     const [
@@ -157,7 +143,7 @@ async function getInjectableCount(origin) {
             } else if ( Array.isArray(fids) ) {
                 total += fids.length;
             }
-            hn = toBroaderHostname(hn);
+            hn = ut.toBroaderHostname(hn);
         }
     }
 
@@ -166,50 +152,27 @@ async function getInjectableCount(origin) {
 
 /******************************************************************************/
 
-async function registerInjectable() {
-
-    const [
-        hostnames,
+function registerSomeInjectables(args) {
+    const {
+        hostnamesSet,
+        trustedSites,
         rulesetIds,
-        registered,
         scriptingDetails,
-    ] = await Promise.all([
-        browser.permissions.getAll(),
-        dnr.getEnabledRulesets(),
-        browser.scripting.getRegisteredContentScripts(),
-        getScriptingDetails(),
-    ]).then(results => {
-        results[0] = new Map(
-            hostnamesFromMatches(results[0].origins).map(hn => [ hn, false ])
-        );
-        return results;
-    });
+    } = args;
 
-    if ( hostnames.has('*') && hostnames.size > 1 ) {
-        hostnames.clear();
-        hostnames.set('*', false);
-    }
-
-    await Promise.all(
-        Array.from(hostnames.keys()).map(
-            hn => matchesTrustedSiteDirective({ hostname: hn })
-                .then(trusted => hostnames.set(hn, trusted))
-        )
-    );
-
-    const toRegister = new Map();
+    const toRegisterMap = new Map();
 
     const checkMatches = (details, hn) => {
         let fids = details.matches?.get(hn);
         if ( fids === undefined ) { return; }
         if ( typeof fids === 'number' ) { fids = [ fids ]; }
         for ( const fid of fids ) {
-            const fname = fnameFromFileId(fid);
-            const existing = toRegister.get(fname);
+            const fname = ut.fnameFromFileId(fid);
+            const existing = toRegisterMap.get(fname);
             if ( existing ) {
                 existing.matches.push(hn);
             } else {
-                toRegister.set(fname, { matches: [ hn ] });
+                toRegisterMap.set(fname, { matches: [ hn ] });
             }
         }
     };
@@ -217,47 +180,91 @@ async function registerInjectable() {
     for ( const rulesetId of rulesetIds ) {
         const details = scriptingDetails.get(rulesetId);
         if ( details === undefined ) { continue; }
-        for ( let [ hn, trusted ] of hostnames ) {
-            if ( trusted ) { continue; }
-            while ( hn !== '' ) {
+        for ( let hn of hostnamesSet ) {
+            if ( isTrustedHostname(trustedSites, hn) ) { continue; }
+            while ( hn ) {
                 checkMatches(details, hn);
-                hn = toBroaderHostname(hn);
+                hn = ut.toBroaderHostname(hn);
             }
         }
     }
 
-    const checkExcludeMatches = (details, hn) => {
-        let fids = details.excludeMatches?.get(hn);
-        if ( fids === undefined ) { return; }
-        if ( typeof fids === 'number' ) { fids = [ fids ]; }
-        for ( const fid of fids ) {
-            const fname = fnameFromFileId(fid);
-            const existing = toRegister.get(fname);
-            if ( existing === undefined ) { continue; }
-            if ( existing.excludeMatches ) {
-                existing.excludeMatches.push(hn);
-            } else {
-                toRegister.set(fname, { excludeMatches: [ hn ] });
-            }
-        }
-    };
+    return toRegisterMap;
+}
+
+function registerAllInjectables(args) {
+    const {
+        trustedSites,
+        rulesetIds,
+        scriptingDetails,
+    } = args;
+
+    const toRegisterMap = new Map();
 
     for ( const rulesetId of rulesetIds ) {
         const details = scriptingDetails.get(rulesetId);
         if ( details === undefined ) { continue; }
-        for ( let hn of hostnames.keys() ) {
-            while ( hn !== '' ) {
-                checkExcludeMatches(details, hn);
-                hn = toBroaderHostname(hn);
+        for ( let [ hn, fids ] of details.matches ) {
+            if ( isTrustedHostname(trustedSites, hn) ) { continue; }
+            if ( typeof fids === 'number' ) { fids = [ fids ]; }
+            for ( const fid of fids ) {
+                const fname = ut.fnameFromFileId(fid);
+                const existing = toRegisterMap.get(fname);
+                if ( existing ) {
+                    existing.matches.push(hn);
+                } else {
+                    toRegisterMap.set(fname, { matches: [ hn ] });
+                }
             }
         }
     }
+
+    return toRegisterMap;
+}
+
+/******************************************************************************/
+
+async function registerInjectables(origins) {
+    void origins;
+
+    if ( browser.scripting === undefined ) { return false; }
+
+    const [
+        hostnamesSet,
+        trustedSites,
+        rulesetIds,
+        scriptingDetails,
+        registered,
+    ] = await Promise.all([
+        browser.permissions.getAll(),
+        getAllTrustedSiteDirectives(),
+        dnr.getEnabledRulesets(),
+        getScriptingDetails(),
+        browser.scripting.getRegisteredContentScripts(),
+    ]).then(results => {
+        results[0] = new Set(ut.hostnamesFromMatches(results[0].origins));
+        results[1] = new Set(results[1]);
+        return results;
+    });
+
+    const toRegisterMap = hostnamesSet.has('*')
+        ? registerAllInjectables({
+            trustedSites,
+            rulesetIds,
+            scriptingDetails,
+        })
+        : registerSomeInjectables({
+            hostnamesSet,
+            trustedSites,
+            rulesetIds,
+            scriptingDetails,
+        });
 
     const before = new Map(registered.map(entry => [ entry.id, entry ]));
 
     const toAdd = [];
     const toUpdate = [];
-    for ( const [ fname, entry ] of toRegister ) {
+    for ( const [ fname, entry ] of toRegisterMap ) {
         if ( before.has(fname) === false ) {
             toAdd.push(toRegisterable(fname, entry));
             continue;
@@ -269,7 +276,7 @@ async function registerInjectable() {
 
     const toRemove = [];
     for ( const fname of before.keys() ) {
-        if ( toRegister.has(fname) ) { continue; }
+        if ( toRegisterMap.has(fname) ) { continue; }
         toRemove.push(fname);
     }
 
@@ -295,5 +302,5 @@ async function registerInjectable() {
 
 export {
     getInjectableCount,
-    registerInjectable
+    registerInjectables
 };

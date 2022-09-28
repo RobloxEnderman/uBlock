@@ -115,6 +115,14 @@
     "message": "Zablokovať CSP hlásenia",
     "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
   },
+  "omnipotenceLabel": {
+    "message": "Povoliť rozšírené filtrovanie na všetkých webových stránkach",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "omnipotenceLegend": {
+    "message": "uBO Lite môže na danú webovú lokalitu použiť rozšírené filtrovanie len po tom, ako rozšíreniu výslovne udelíte oprávnenia na úpravu údajov na danej webovej lokalite. Toto nastavenie umožňuje udeliť oprávnenia na rozšírené filtrovanie všetkým webovým stránkam naraz.",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
   "3pGroupDefault": {
     "message": "Predvolené",
     "description": "Header for a ruleset section in 'Filter lists pane'"

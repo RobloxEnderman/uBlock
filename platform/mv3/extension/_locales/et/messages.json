@@ -115,6 +115,14 @@
     "message": "Keela lehe turvareeglite (CSP-de) aruanded",
     "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
   },
+  "omnipotenceLabel": {
+    "message": "Luba põhjalik filtreerimine kõikidel veebilehtedel",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "omnipotenceLegend": {
+    "message": "uBO Lite filtreerib teatud veebilehte põhjalikult vaid juhul, kui lubate selgesõnaliselt laiendi lubades muuta selle veebilehe andmeid. Selle sättega lubate filtreerida kõiki veebilehti põhjalikult ja samal ajal.",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
   "3pGroupDefault": {
     "message": "Vaikimisi",
     "description": "Header for a ruleset section in 'Filter lists pane'"

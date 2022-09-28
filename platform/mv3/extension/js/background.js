@@ -43,7 +43,7 @@ import {
 
 import {
     getInjectableCount,
-    registerInjectable,
+    registerInjectables,
 } from './scripting-manager.js';
 
 import {
@@ -72,7 +72,7 @@ async function loadRulesetConfig() {
         return;
     }
 
-    const match = /^\|\|example.invalid\/([^\/]+)\/(?:([^\/]+)\/)?/.exec(
+    const match = /^\|\|(?:example|ubolite)\.invalid\/([^\/]+)\/(?:([^\/]+)\/)?/.exec(
         configRule.condition.urlFilter
     );
     if ( match === null ) { return; }
@@ -101,7 +101,7 @@ async function saveRulesetConfig() {
 
     const version = rulesetConfig.version;
     const enabledRulesets = encodeURIComponent(rulesetConfig.enabledRulesets.join(' '));
-    const urlFilter = `||example.invalid/${version}/${enabledRulesets}/`;
+    const urlFilter = `||ubolite.invalid/${version}/${enabledRulesets}/`;
     if ( urlFilter === configRule.condition.urlFilter ) { return; }
     configRule.condition.urlFilter = urlFilter;
 
@@ -113,26 +113,24 @@ async function saveRulesetConfig() {
 
 /******************************************************************************/
 
-async function hasGreatPowers(origin) {
+function hasGreatPowers(origin) {
     return browser.permissions.contains({
-        origins: [ `${origin}/*` ]
+        origins: [ `${origin}/*` ],
     });
 }
 
-function grantGreatPowers(hostname) {
-    return browser.permissions.request({
-        origins: [
-            `*://${hostname}/*`,
-        ]
+function hasOmnipotence() {
+    return browser.permissions.contains({
+        origins: [ '<all_urls>' ],
     });
 }
 
-function revokeGreatPowers(hostname) {
-    return browser.permissions.remove({
-        origins: [
-            `*://${hostname}/*`,
-        ]
-    });
+function onPermissionsAdded(permissions) {
+    registerInjectables(permissions.origins);
+}
+
+function onPermissionsRemoved(permissions) {
+    registerInjectables(permissions.origins);
 }
 
 /******************************************************************************/
@@ -143,11 +141,9 @@ function onMessage(request, sender, callback) {
     case 'applyRulesets': {
         enableRulesets(request.enabledRulesets).then(( ) => {
             rulesetConfig.enabledRulesets = request.enabledRulesets;
-            return Promise.all([
-                saveRulesetConfig(),
-                registerInjectable(),
-            ]);
+            return saveRulesetConfig();
         }).then(( ) => {
+            registerInjectables();
             callback();
         });
         return true;
@@ -157,52 +153,41 @@ function onMessage(request, sender, callback) {
         Promise.all([
             getRulesetDetails(),
             dnr.getEnabledRulesets(),
+            hasOmnipotence(),
         ]).then(results => {
-            const [ rulesetDetails, enabledRulesets ] = results;
+            const [ rulesetDetails, enabledRulesets, hasOmnipotence ] = results;
             callback({
                 enabledRulesets,
                 rulesetDetails: Array.from(rulesetDetails.values()),
+                hasOmnipotence,
             });
         });
         return true;
     }
 
-    case 'grantGreatPowers':
-        grantGreatPowers(request.hostname).then(granted => {
-            console.info(`Granted uBOL great powers on ${request.hostname}: ${granted}`);
-            callback(granted);
-        });
-        return true;
-
     case 'popupPanelData': {
         Promise.all([
             matchesTrustedSiteDirective(request),
+            hasOmnipotence(),
             hasGreatPowers(request.origin),
             getEnabledRulesetsStats(),
             getInjectableCount(request.origin),
         ]).then(results => {
             callback({
                 isTrusted: results[0],
-                hasGreatPowers: results[1],
-                rulesetDetails: results[2],
-                injectableCount: results[3],
+                hasOmnipotence: results[1],
+                hasGreatPowers: results[2],
+                rulesetDetails: results[3],
+                injectableCount: results[4],
             });
         });
         return true;
     }
 
-    case 'revokeGreatPowers':
-        revokeGreatPowers(request.hostname).then(removed => {
-            console.info(`Revoked great powers from uBOL on ${request.hostname}: ${removed}`);
-            callback(removed);
-        });
-        return true;
-
     case 'toggleTrustedSiteDirective': {
         toggleTrustedSiteDirective(request).then(response => {
-            registerInjectable().then(( ) => {
-                callback(response);
-            });
+            registerInjectables();
+            callback(response);
         });
         return true;
     }
@@ -211,10 +196,6 @@ function onMessage(request, sender, callback) {
         break;
 
     }
-}
-
-async function onPermissionsChanged() {
-    await registerInjectable();
 }
 
 /******************************************************************************/
@@ -236,7 +217,7 @@ async function start() {
     // Unsure whether the browser remembers correctly registered css/scripts
     // after we quit the browser. For now uBOL will check unconditionally at
     // launch time whether content css/scripts are properly registered.
-    registerInjectable();
+    registerInjectables();
 
     const enabledRulesets = await dnr.getEnabledRulesets();
     console.log(`Enabled rulesets: ${enabledRulesets}`);
@@ -253,6 +234,6 @@ async function start() {
 
     runtime.onMessage.addListener(onMessage);
 
-    browser.permissions.onAdded.addListener(onPermissionsChanged);
-    browser.permissions.onRemoved.addListener(onPermissionsChanged);
+    browser.permissions.onAdded.addListener(onPermissionsAdded);
+    browser.permissions.onRemoved.addListener(onPermissionsRemoved);
 })();

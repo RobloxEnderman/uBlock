@@ -115,6 +115,14 @@
     "message": "Φραγή αναφορών CSP",
     "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
   },
+  "omnipotenceLabel": {
+    "message": "Ενεργοποιήστε το εκτεταμένο φιλτράρισμα σε όλους τους ιστότοπους",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "omnipotenceLegend": {
+    "message": "Το uBO Lite μπορεί να εφαρμόσει εκτεταμένο φιλτράρισμα σε έναν συγκεκριμένο ιστότοπο μόνο αφού εκχωρήσετε ρητά στην επέκταση δικαιώματα τροποποίησης δεδομένων σε αυτόν τον ιστότοπο. Αυτή η ρύθμιση σάς επιτρέπει να εκχωρήσετε δικαιώματα για εκτεταμένο φιλτράρισμα σε όλους τους ιστότοπους ταυτόχρονα.",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
   "3pGroupDefault": {
     "message": "Προεπιλογή",
     "description": "Header for a ruleset section in 'Filter lists pane'"

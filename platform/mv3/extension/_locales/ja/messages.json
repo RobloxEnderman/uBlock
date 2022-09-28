@@ -115,6 +115,14 @@
     "message": "CSP レポートをブロックする",
     "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
   },
+  "omnipotenceLabel": {
+    "message": "すべてのウェブサイトで拡張フィルタリングを有効化",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "omnipotenceLegend": {
+    "message": "uBO Liteはウェブサイトに対して、そのウェブサイトのデータを変更する権限を拡張機能に明示的に付与した場合にのみ、拡張フィルタリングを適用できます。この設定を有効化すると、すべてのウェブサイトに対して一括で拡張フィルタリングの許可を与えられます。",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
   "3pGroupDefault": {
     "message": "既定",
     "description": "Header for a ruleset section in 'Filter lists pane'"
@@ -160,7 +168,7 @@
     "description": "English: my-ublock-static-filters_{{datetime}}.txt"
   },
   "whitelistPrompt": {
-    "message": "[信頼するサイト] では uBO Lite を無効にするウェブページを指定します。1 行につき 1 ページです。",
+    "message": "[信頼するサイト] では uBO Lite を無効にするウェブページを指定します。1 行に つき 1 つです。",
     "description": "A concise description of the 'Trusted sites' pane."
   },
   "whitelistImport": {

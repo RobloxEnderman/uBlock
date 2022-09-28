@@ -115,6 +115,14 @@
     "message": "CSP 보고를 차단하기",
     "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
   },
+  "omnipotenceLabel": {
+    "message": "모든 웹사이트에 대해 확장된 필터링 켜기",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "omnipotenceLegend": {
+    "message": "uBO Lite에서 특정 사이트에서 필터링을 수행하기 위해서는 해당 사이트의 데이터 수정 권한을 일일이 부여해야 합니다. 이 설정을 이용하면 모든 웹사이트에 대해 확장된 필터링 권한을 한 번에 부여할 수 있습니다.",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
   "3pGroupDefault": {
     "message": "기본값",
     "description": "Header for a ruleset section in 'Filter lists pane'"

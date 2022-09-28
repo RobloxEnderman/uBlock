@@ -115,6 +115,14 @@
     "message": "Blokuj raporty CSP",
     "description": "background information: https://github.com/gorhill/uBlock/issues/3150"
   },
+  "omnipotenceLabel": {
+    "message": "Włącz rozszerzone filtrowanie na wszystkich witrynach internetowych",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
+  "omnipotenceLegend": {
+    "message": "uBO Lite może zastosować rozszerzone filtrowanie na danej witrynie internetowej tylko po wyraźnym przyznaniu rozszerzeniu uprawnień do modyfikowania danych na tej witrynie. To ustawienie pozwala na przyznanie uprawnień do rozszerzonego filtrowania wszystkich witryn jednocześnie.",
+    "description": "Header for a ruleset section in 'Filter lists pane'"
+  },
   "3pGroupDefault": {
     "message": "Domyślne",
     "description": "Header for a ruleset section in 'Filter lists pane'"

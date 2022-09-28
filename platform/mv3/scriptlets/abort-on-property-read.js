@@ -39,6 +39,14 @@
 
 /******************************************************************************/
 
+// $rulesetId$
+
+const argsMap = new Map(self.$argsMap$);
+
+const hostnamesMap = new Map(self.$hostnamesMap$);
+
+/******************************************************************************/
+
 const ObjGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
 const ObjDefineProperty = Object.defineProperty;
 
@@ -92,7 +100,7 @@ const scriptlet = (
     makeProxy(owner, chain);
     const oe = window.onerror;
     window.onerror = function(msg, src, line, col, error) {
-        if ( typeof msg === 'string' && msg.indexOf(magic) !== -1 ) {
+        if ( typeof msg === 'string' && msg.includes(magic) ) {
             return true;
         }
         if ( oe instanceof Function ) {
@@ -102,10 +110,6 @@ const scriptlet = (
 };
 
 /******************************************************************************/
-
-const argsMap = new Map(self.$argsMap$);
-
-const hostnamesMap = new Map(self.$hostnamesMap$);
 
 let hn;
 try { hn = document.location.hostname; } catch(ex) { }
@@ -119,10 +123,19 @@ while ( hn ) {
             try { scriptlet(...details.a); } catch(ex) {}
         }
     }
+    if ( hn === '*' ) { break; }
     const pos = hn.indexOf('.');
-    if ( pos === -1 ) { break; }
-    hn = hn.slice(pos + 1);
+    if ( pos !== -1 ) {
+        hn = hn.slice(pos + 1);
+    } else {
+        hn = '*';
+    }
 }
+
+/******************************************************************************/
+
+argsMap.clear();
+hostnamesMap.clear();
 
 /******************************************************************************/
 
