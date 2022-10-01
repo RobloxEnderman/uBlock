@@ -55,7 +55,13 @@ const outputDir = commandLineArgs.get('output') || '.';
 const cacheDir = `${outputDir}/../mv3-data`;
 const rulesetDir = `${outputDir}/rulesets`;
 const scriptletDir = `${rulesetDir}/js`;
-const env = [ 'chromium', 'ubol', 'native_css_has' ];
+const env = [
+    'chromium',
+    'native_css_has',
+    'ublock',
+    'ubol',
+    'user_stylesheet',
+];
 
 /******************************************************************************/
 
@@ -71,6 +77,11 @@ const uidint32 = (s) => {
     const h = createHash('sha256').update(s).digest('hex').slice(0,8);
     return parseInt(h,16) & 0x7FFFFFFF;
 };
+
+const hnSort = (a, b) =>
+    a.split('.').reverse().join('.').localeCompare(
+        b.split('.').reverse().join('.')
+    );
 
 /******************************************************************************/
 
@@ -239,8 +250,8 @@ async function processNetworkFilters(assetDetails, network) {
     log(`\tRejected filter count: ${network.rejectedFilterCount}`);
     log(`Output rule count: ${rules.length}`);
 
-    const good = rules.filter(rule => isGood(rule) && isRegex(rule) === false);
-    log(`\tGood: ${good.length}`);
+    const plainGood = rules.filter(rule => isGood(rule) && isRegex(rule) === false);
+    log(`\tPlain good: ${plainGood.length}`);
 
     const regexes = rules.filter(rule => isGood(rule) && isRegex(rule));
     log(`\tMaybe good (regexes): ${regexes.length}`);
@@ -257,24 +268,23 @@ async function processNetworkFilters(assetDetails, network) {
     );
     log(`\tcsp= (discarded): ${headers.length}`);
 
-    const removeparams = rules.filter(rule =>
-        isUnsupported(rule) === false &&
-        isRemoveparam(rule)
+    const removeparamsGood = rules.filter(rule =>
+        isUnsupported(rule) === false && isRemoveparam(rule)
     );
-    log(`\tremoveparams= (discarded): ${removeparams.length}`);
+    const removeparamsBad = rules.filter(rule =>
+        isUnsupported(rule) && isRemoveparam(rule)
+    );
+    log(`\tremoveparams= (accepted/discarded): ${removeparamsGood.length}/${removeparamsBad.length}`);
 
     const bad = rules.filter(rule =>
         isUnsupported(rule)
     );
     log(`\tUnsupported: ${bad.length}`);
-    log(
-        bad.map(rule => rule._error.map(v => `\t\t${v}`)).join('\n'),
-        true
-    );
+    log(bad.map(rule => rule._error.map(v => `\t\t${v}`)).join('\n'), true);
 
     writeFile(
         `${rulesetDir}/${assetDetails.id}.json`,
-        `${JSON.stringify(good, replacer)}\n`
+        `${JSON.stringify(plainGood, replacer)}\n`
     );
 
     if ( regexes.length !== 0 ) {
@@ -284,12 +294,20 @@ async function processNetworkFilters(assetDetails, network) {
         );
     }
 
+    if ( removeparamsGood.length !== 0 ) {
+        writeFile(
+            `${rulesetDir}/${assetDetails.id}.removeparams.json`,
+            `${JSON.stringify(removeparamsGood, replacer)}\n`
+        );
+    }
+
     return {
         total: rules.length,
-        accepted: good.length,
-        discarded: redirects.length + headers.length + removeparams.length,
+        plain: plainGood.length,
+        discarded: redirects.length + headers.length + removeparamsBad.length,
         rejected: bad.length,
         regexes: regexes.length,
+        removeparams: removeparamsGood.length,
     };
 }
 
@@ -344,25 +362,22 @@ function loadAllSourceScriptlets() {
 
 const globalPatchedScriptletsSet = new Set();
 
-function addScriptingAPIResources(id, entry, prop, fid) {
-    if ( entry[prop] === undefined ) { return; }
-    for ( const hn of entry[prop] ) {
-        let details = scriptingDetails.get(id);
-        if ( details === undefined ) {
-            details = {};
-            scriptingDetails.set(id, details);
+function addScriptingAPIResources(id, hostnames, fid) {
+    if ( hostnames === undefined ) { return; }
+    for ( const hn of hostnames ) {
+        let hostnamesToFidMap = scriptingDetails.get(id);
+        if ( hostnamesToFidMap === undefined ) {
+            hostnamesToFidMap = new Map();
+            scriptingDetails.set(id, hostnamesToFidMap);
         }
-        if ( details[prop] === undefined ) {
-            details[prop] = new Map();
-        }
-        let fids = details[prop].get(hn);
+        let fids = hostnamesToFidMap.get(hn);
         if ( fids === undefined ) {
-            details[prop].set(hn, fid);
+            hostnamesToFidMap.set(hn, fid);
         } else if ( fids instanceof Set ) {
             fids.add(fid);
         } else if ( fid !== fids ) {
             fids = new Set([ fids, fid ]);
-            details[prop].set(hn, fids);
+            hostnamesToFidMap.set(hn, fids);
         }
     }
 }
@@ -375,8 +390,7 @@ const pathFromFileName = fname => `${scriptletDir}/${fname.slice(0,2)}/${fname.s
 
 /******************************************************************************/
 
-const COSMETIC_FILES_PER_RULESET = 12;
-const PROCEDURAL_FILES_PER_RULESET = 4;
+const MAX_COSMETIC_FILTERS_PER_FILE = 128;
 
 // This merges selectors which are used by the same hostnames
 
@@ -432,10 +446,6 @@ function groupCosmeticBySelectors(arrayin) {
             }
         }
     }
-    const hnSort = (a, b) =>
-        a.split('.').reverse().join('.').localeCompare(
-            b.split('.').reverse().join('.')
-        );
     const out = Array.from(contentMap).map(a => [
         a[0], {
             a: a[1].a,
@@ -483,8 +493,6 @@ async function processCosmeticFilters(assetDetails, mapin) {
     const contentArray = groupCosmeticBySelectors(
         groupCosmeticByHostnames(mapin)
     );
-    const contentPerFile =
-        Math.ceil(contentArray.length / COSMETIC_FILES_PER_RULESET);
 
     // We do not want more than n CSS files per subscription, so we will
     // group multiple unrelated selectors in the same file, and distinct
@@ -497,8 +505,8 @@ async function processCosmeticFilters(assetDetails, mapin) {
     const originalScriptletMap = await loadAllSourceScriptlets();
     const generatedFiles = [];
 
-    for ( let i = 0; i < contentArray.length; i += contentPerFile ) {
-        const slice = contentArray.slice(i, i + contentPerFile);
+    for ( let i = 0; i < contentArray.length; i += MAX_COSMETIC_FILTERS_PER_FILE ) {
+        const slice = contentArray.slice(i, i + MAX_COSMETIC_FILTERS_PER_FILE);
         const argsMap = slice.map(entry => [
             entry[0],
             {
@@ -530,18 +538,7 @@ async function processCosmeticFilters(assetDetails, mapin) {
             generatedFiles.push(fname);
         }
         for ( const entry of slice ) {
-            addScriptingAPIResources(
-                assetDetails.id,
-                { matches: entry[1].y },
-                'matches',
-                fid
-            );
-            addScriptingAPIResources(
-                assetDetails.id,
-                { excludeMatches: entry[1].n },
-                'excludeMatches',
-                fid
-            );
+            addScriptingAPIResources(assetDetails.id, entry[1].y, fid);
         }
     }
 
@@ -562,8 +559,6 @@ async function processProceduralCosmeticFilters(assetDetails, mapin) {
     const contentArray = groupCosmeticBySelectors(
         groupCosmeticByHostnames(mapin)
     );
-    const contentPerFile =
-        Math.ceil(contentArray.length / PROCEDURAL_FILES_PER_RULESET);
 
     // We do not want more than n CSS files per subscription, so we will
     // group multiple unrelated selectors in the same file, and distinct
@@ -576,8 +571,8 @@ async function processProceduralCosmeticFilters(assetDetails, mapin) {
     const originalScriptletMap = await loadAllSourceScriptlets();
     const generatedFiles = [];
 
-    for ( let i = 0; i < contentArray.length; i += contentPerFile ) {
-        const slice = contentArray.slice(i, i + contentPerFile);
+    for ( let i = 0; i < contentArray.length; i += MAX_COSMETIC_FILTERS_PER_FILE ) {
+        const slice = contentArray.slice(i, i + MAX_COSMETIC_FILTERS_PER_FILE);
         const argsMap = slice.map(entry => [
             entry[0],
             {
@@ -609,18 +604,7 @@ async function processProceduralCosmeticFilters(assetDetails, mapin) {
             generatedFiles.push(fname);
         }
         for ( const entry of slice ) {
-            addScriptingAPIResources(
-                assetDetails.id,
-                { matches: entry[1].y },
-                'matches',
-                fid
-            );
-            addScriptingAPIResources(
-                assetDetails.id,
-                { excludeMatches: entry[1].n },
-                'excludeMatches',
-                fid
-            );
+            addScriptingAPIResources(assetDetails.id, entry[1].y, fid);
         }
     }
 
@@ -749,18 +733,7 @@ async function processScriptletFilters(assetDetails, mapin) {
             generatedFiles.push(fname);
         }
         for ( const details of argsDetails.values() ) {
-            addScriptingAPIResources(
-                assetDetails.id,
-                { matches: details.y },
-                'matches',
-                fid
-            );
-            addScriptingAPIResources(
-                assetDetails.id,
-                { excludeMatches: details.n },
-                'excludeMatches',
-                fid
-            );
+            addScriptingAPIResources(assetDetails.id, details.y, fid);
         }
     }
 
@@ -844,10 +817,11 @@ const rulesetFromURLS = async function(assetDetails) {
         },
         rules: {
             total: netStats.total,
-            accepted: netStats.accepted,
+            plain: netStats.plain,
+            regexes: netStats.regexes,
+            removeparams: netStats.removeparams,
             discarded: netStats.discarded,
             rejected: netStats.rejected,
-            regexes: netStats.regexes,
         },
         css: {
             specific: cosmeticStats,
@@ -941,7 +915,7 @@ async function main() {
     }
 
     // Handpicked rulesets from assets.json
-    const handpicked = [ 'block-lan', 'dpollock-0' ];
+    const handpicked = [ 'block-lan', 'dpollock-0', 'adguard-spyware-url' ];
     for ( const id of handpicked ) {
         const asset = assets[id];
         if ( asset.content !== 'filters' ) { continue; }
@@ -972,6 +946,14 @@ async function main() {
         `${JSON.stringify(rulesetDetails, null, 1)}\n`
     );
 
+    // We sort the hostnames for convenience/performance in the extension's
+    // script manager -- the scripting API does a sort() internally.
+    for ( const [ rulesetId, hostnamesToFidsMap ] of scriptingDetails ) {
+        scriptingDetails.set(
+            rulesetId,
+            Array.from(hostnamesToFidsMap).sort()
+        );
+    }
     writeFile(
         `${rulesetDir}/scripting-details.json`,
         `${JSON.stringify(scriptingDetails, jsonSetMapReplacer)}\n`

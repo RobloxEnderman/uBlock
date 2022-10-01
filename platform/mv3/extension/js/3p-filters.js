@@ -30,19 +30,35 @@ import { simpleStorage } from './storage.js';
 
 /******************************************************************************/
 
+const rulesetMap = new Map();
 let cachedRulesetData = {};
 let filteringSettingsHash = '';
 let hideUnusedSet = new Set([ 'regions' ]);
 
 /******************************************************************************/
 
-const renderNumber = function(value) {
+function renderNumber(value) {
     return value.toLocaleString();
-};
+}
 
 /******************************************************************************/
 
-function renderFilterLists(soft) {
+function rulesetStats(rulesetId) {
+    const canRemoveParams = cachedRulesetData.hasOmnipotence;
+    const rulesetDetails = rulesetMap.get(rulesetId);
+    if ( rulesetDetails === undefined ) { return; }
+    const { rules, filters } = rulesetDetails;
+    let ruleCount = rules.plain + rules.regexes;
+    if ( canRemoveParams ) {
+        ruleCount += rules.removeparams;
+    }
+    const filterCount = filters.accepted;
+    return { ruleCount, filterCount };
+}
+
+/******************************************************************************/
+
+function renderFilterLists(soft = false) {
     const { enabledRulesets, rulesetDetails } = cachedRulesetData;
     const listGroupTemplate = qs$('#templates .groupEntry');
     const listEntryTemplate = qs$('#templates .listEntry');
@@ -77,12 +93,19 @@ function renderFilterLists(soft) {
             dom.cl.toggle(li, 'unused', hideUnused && !on);
         }
         // https://github.com/gorhill/uBlock/issues/1429
-        if ( !soft ) {
+        if ( soft !== true ) {
             qs$('input[type="checkbox"]', li).checked = on;
         }
+        const stats = rulesetStats(ruleset.id);
         li.title = listStatsTemplate
-            .replace('{{ruleCount}}', renderNumber(ruleset.rules.accepted))
-            .replace('{{filterCount}}', renderNumber(ruleset.filters.accepted));
+            .replace('{{ruleCount}}', renderNumber(stats.ruleCount))
+            .replace('{{filterCount}}', renderNumber(stats.filterCount));
+        dom.attr(
+            qs$('.input.checkbox', li),
+            'disabled',
+            stats.ruleCount === 0 ? '' : null
+        );
+        dom.cl.remove(li, 'discard');
         return li;
     };
 
@@ -191,6 +214,8 @@ function renderFilterLists(soft) {
 /******************************************************************************/
 
 const renderWidgets = function() {
+    dom.cl.toggle(dom.body, 'firstRun', cachedRulesetData.firstRun === true);
+
     qs$('#omnipotenceWidget input').checked = cachedRulesetData.hasOmnipotence;
 
     dom.cl.toggle(
@@ -200,17 +225,14 @@ const renderWidgets = function() {
     );
 
     // Compute total counts
-    const rulesetMap = new Map(
-        cachedRulesetData.rulesetDetails.map(rule => [ rule.id, rule ])
-    );
     let filterCount = 0;
     let ruleCount = 0;
     for ( const liEntry of qsa$('#lists .listEntry[data-listkey]') ) {
         if ( qs$('input[type="checkbox"]:checked', liEntry)  === null ) { continue; }
-        const ruleset = rulesetMap.get(liEntry.dataset.listkey);
-        if ( ruleset === undefined ) { continue; }
-        filterCount += ruleset.filters.accepted;
-        ruleCount += ruleset.rules.accepted;
+        const stats = rulesetStats(liEntry.dataset.listkey);
+        if ( stats === undefined ) { continue; }
+        ruleCount += stats.ruleCount;
+        filterCount += stats.filterCount;
     }
     qs$('#listsOfBlockedHostsPrompt').textContent = i18n$('perRulesetStats')
         .replace('{{ruleCount}}', ruleCount.toLocaleString())
@@ -239,7 +261,10 @@ async function onOmnipotenceChanged(ev) {
         }) !== true;
     }
 
+    cachedRulesetData.hasOmnipotence = actualState;
     qs$('#omnipotenceWidget input').checked = actualState;
+    renderFilterLists(true);
+    renderWidgets();
 }
 
 dom.on(
@@ -385,6 +410,8 @@ sendMessage({
 }).then(data => {
     if ( !data ) { return; }
     cachedRulesetData = data;
+    rulesetMap.clear();
+    cachedRulesetData.rulesetDetails.forEach(rule => rulesetMap.set(rule.id, rule));
     try {
         renderFilterLists();
     } catch(ex) {

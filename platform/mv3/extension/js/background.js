@@ -37,8 +37,8 @@ import {
     getDynamicRules,
     defaultRulesetsFromLanguage,
     enableRulesets,
-    getEnabledRulesetsStats,
-    updateRegexRules,
+    getEnabledRulesetsDetails,
+    updateDynamicRules,
 } from './ruleset-manager.js';
 
 import {
@@ -56,6 +56,7 @@ import {
 const rulesetConfig = {
     version: '',
     enabledRulesets: [],
+    firstRun: false,
 };
 
 /******************************************************************************/
@@ -69,6 +70,7 @@ async function loadRulesetConfig() {
     const configRule = dynamicRuleMap.get(CURRENT_CONFIG_BASE_RULE_ID);
     if ( configRule === undefined ) {
         rulesetConfig.enabledRulesets = await defaultRulesetsFromLanguage();
+        rulesetConfig.firstRun = true;
         return;
     }
 
@@ -113,7 +115,8 @@ async function saveRulesetConfig() {
 
 /******************************************************************************/
 
-function hasGreatPowers(origin) {
+async function hasGreatPowers(origin) {
+    if ( /^https?:\/\//.test(origin) === false ) { return false; }
     return browser.permissions.contains({
         origins: [ `${origin}/*` ],
     });
@@ -126,10 +129,16 @@ function hasOmnipotence() {
 }
 
 function onPermissionsAdded(permissions) {
+    if ( permissions.origins?.includes('<all_urls>') ) {
+        updateDynamicRules();
+    }
     registerInjectables(permissions.origins);
 }
 
 function onPermissionsRemoved(permissions) {
+    if ( permissions.origins?.includes('<all_urls>') ) {
+        updateDynamicRules();
+    }
     registerInjectables(permissions.origins);
 }
 
@@ -160,7 +169,9 @@ function onMessage(request, sender, callback) {
                 enabledRulesets,
                 rulesetDetails: Array.from(rulesetDetails.values()),
                 hasOmnipotence,
+                firstRun: rulesetConfig.firstRun,
             });
+            rulesetConfig.firstRun = false;
         });
         return true;
     }
@@ -170,7 +181,7 @@ function onMessage(request, sender, callback) {
             matchesTrustedSiteDirective(request),
             hasOmnipotence(),
             hasGreatPowers(request.origin),
-            getEnabledRulesetsStats(),
+            getEnabledRulesetsDetails(),
             getInjectableCount(request.origin),
         ]).then(results => {
             callback({
@@ -208,7 +219,7 @@ async function start() {
     const currentVersion = getCurrentVersion();
     if ( currentVersion !== rulesetConfig.version ) {
         console.log(`Version change: ${rulesetConfig.version} => ${currentVersion}`);
-        updateRegexRules().then(( ) => {
+        updateDynamicRules().then(( ) => {
             rulesetConfig.version = currentVersion;
             saveRulesetConfig();
         });
@@ -236,4 +247,8 @@ async function start() {
 
     browser.permissions.onAdded.addListener(onPermissionsAdded);
     browser.permissions.onRemoved.addListener(onPermissionsRemoved);
+
+    if ( rulesetConfig.firstRun ) {
+        runtime.openOptionsPage();
+    }
 })();
